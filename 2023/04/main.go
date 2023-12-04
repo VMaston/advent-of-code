@@ -15,6 +15,29 @@ import (
 // Card 5: 87 83 26 28 32 | 88 30 70 12 93 22 82 36
 // Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11`
 
+type cardType struct {
+	instances int
+	winners map[string][]int
+	numbers []string
+}
+
+func createScratchcard(line string) cardType{
+	card := strings.Split(string(line), "|")
+	winningNums := strings.Fields(strings.Split(card[0], ":")[1])
+	winners := make(map[string][]int)
+	playerNums := strings.Fields(card[1])
+	for _, num := range winningNums {
+		number, _ := strconv.Atoi(num)
+		winners[num] = append(winners[num], number)
+	}
+
+	return cardType{
+		instances: 1,
+		winners: winners,
+		numbers: playerNums,
+	}
+}
+
 func main() {
 	input, err := os.ReadFile("input.txt")
 	if err!= nil {
@@ -22,34 +45,44 @@ func main() {
 	}
 	lines := strings.Split(string(input), "\n")
 	
+	cards := make(map[int][]cardType)
 	var totalPoints int
+	var iterationTotal int
 
+	//Organize each scratchcard into Map with value of cardType struct.
 	for i, v := range lines {
-		fmt.Println("Card ", i+1)
-		var cardPoints int
-		winners := make(map[string][]int)
-		card := strings.Split(string(v), "|")
-		winningNums := strings.Fields(strings.Split(card[0], ":")[1])
-		playerNums := strings.Fields(card[1])
-		for _, num := range winningNums {
-			number, _ := strconv.Atoi(num)
-			winners[num] = append(winners[num], number)
-		}
+		cards[i] = append(cards[i], createScratchcard(v))
+	}
 
+	for i := range lines { //We iterate on the lines, just for the index - to get the relevant map key. 
+		//Grab properties of the current scratchcard
+		playerNums := cards[i][0].numbers
+		winners := cards[i][0].winners
+		instances := cards[i][0].instances
+
+		var cardPoints int
+		var winnings int
+		
+		//Part 1
 		for _, num := range playerNums {
-			if winners[num] != nil {
-				fmt.Println("Winner!", num, "and", winners[num])
+			if winners[num] != nil { //Winners is a key:value map for easy lookup.
+				winnings++
 				if cardPoints == 0 {
 					cardPoints = 1
-				} else {
+					} else {
 					cardPoints = cardPoints * 2
 				}
-				fmt.Println("Total Card Points:", cardPoints)
 			}
 		}
 		totalPoints += cardPoints
-
+		
+		//Part 2
+		for y := i; y < i+winnings; y++ { //Iterate through the scratchcard collection for the amount you won.
+			cards[y+1][0].instances += instances //We add instances to the next card based on how many instances we have on our active card. Instead of iterating +1, we just add on the total.
+		}
+		iterationTotal += cards[i][0].instances
 	}
 
 	fmt.Println("All Scratchcard Points:", totalPoints)
+	fmt.Println("Iteration Total:", iterationTotal)
 }
