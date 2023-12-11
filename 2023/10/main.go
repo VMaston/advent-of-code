@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -15,6 +14,9 @@ func parseInput(input []byte) ([][]string, []int) {
 		for ii, vv := range v {
 			if vv == 'S' {
 				start = append(start, i, ii)
+			}
+			if vv == '7' {
+				vv = '¬'
 			}
 			arr[i] = append(arr[i], string(vv))
 		}
@@ -35,7 +37,7 @@ func getStartDirection(start []int, pipes [][]string) [2]int { //Height, Width
 
 	for i, v := range directions {
 		//Boundary Limits
-		if v[0] < 0 || v[0] > len(pipes) || v[1] < 0 || v[1] > len(pipes) {
+		if v[0] < 0 || v[0] > len(pipes[0]) || v[1] < 0 || v[1] > len(pipes[1]) {
 			continue
 		}
 
@@ -44,7 +46,7 @@ func getStartDirection(start []int, pipes [][]string) [2]int { //Height, Width
 		switch i {
 		case 0:
 			switch symbol {
-			case "|", "7", "F":
+			case "|", "¬", "F":
 				fmt.Println("Compatible with North")
 				startDirections = north
 			}
@@ -55,7 +57,7 @@ func getStartDirection(start []int, pipes [][]string) [2]int { //Height, Width
 			}
 		case 2:
 			switch symbol {
-			case "-", "J", "7":
+			case "-", "J", "¬":
 				startDirections = east
 			}
 		case 3:
@@ -91,8 +93,6 @@ func getDirection(prev []int, step [2]int, symbol string) [2]int {
 		}
 	}
 
-	fmt.Println(step, startDirection, symbol, prev)
-
 	switch startDirection {
 	case north:
 		switch symbol {
@@ -111,7 +111,7 @@ func getDirection(prev []int, step [2]int, symbol string) [2]int {
 			return east
 		case "J":
 			return north
-		case "7":
+		case "¬":
 			return south
 		default:
 			fmt.Println("Prev was West but symbol didn't match.")
@@ -133,7 +133,7 @@ func getDirection(prev []int, step [2]int, symbol string) [2]int {
 			return north
 		case "F":
 			return east
-		case "7":
+		case "¬":
 			return west
 		default:
 			fmt.Println("Prev was South but symbol didn't match.", symbol)
@@ -145,45 +145,99 @@ func getDirection(prev []int, step [2]int, symbol string) [2]int {
 }
 
 var sample = []byte(
-	`..F7.
-.FJ|.
-SJ.L7
-|F--J
-LJ...`)
+	`...........
+.S-------7.
+.|F-----7|.
+.||.....||.
+.||.....||.
+.|L-7.F-J|.
+.|..|.|..|.
+.L--J.L--J.
+...........`)
+
+func boundaries(arr [][]string, i int) bool {
+	if i < 0 || i > len(arr) {
+		return false
+	}
+	return true
+}
 
 func main() {
-	input, err := os.ReadFile("input.txt")
-	if err != nil {
-		fmt.Println("There has been an error reading the file.")
-		panic(err)
-	}
+	// input, err := os.ReadFile("input.txt")
+	// if err != nil {
+	// 	fmt.Println("There has been an error reading the file.")
+	// 	panic(err)
+	// }
 
-	pipes, start := parseInput(input)
+	pipes, start := parseInput(sample)
 
 	running := true
-
 	steps := 1
 	prev := start
 	next := getStartDirection(start, pipes)
-	for iterations := 0; running; iterations++ {
-		for ii, line := range pipes {
-			for iii, pipe := range line {
-				if ii == next[0] && iii == next[1] {
+	mapY := make(map[int][2]int)
+	mapX := make(map[int][2]int)
+
+	for running {
+		for i, line := range pipes {
+			for ii, pipe := range line {
+				if i == next[0] && ii == next[1] {
 					dir := getDirection(prev, next, pipe)
 					if dir == [2]int{} {
 						running = false
 					}
-					prev = []int{ii, iii}
+					prev = []int{i, ii}
 					next[0], next[1] = dir[0], dir[1]
-					pipes[ii][iii] = fmt.Sprint(steps)
+					pipes[i][ii] = fmt.Sprint(steps)
 					steps++
 				}
 			}
 		}
 	}
 
-	for _, pipe := range pipes {
-		fmt.Println(pipe)
+	// Part 2 - Unfinished (Perimeter algorithm did not account for irregular shapes)
+	for i, line := range pipes {
+		mapY[i] = [2]int{999, 0}
+		for ii, pipe := range line {
+			if _, ok := mapX[ii]; !ok {
+				mapX[ii] = [2]int{999, 0}
+			}
+			if strings.ContainsAny(pipe, "0123456789") {
+				if ii > mapY[i][1] {
+					mapY[i] = [2]int{mapY[i][0], ii}
+				}
+				if ii < mapY[i][0] {
+					mapY[i] = [2]int{ii, mapY[i][1]}
+				}
+				if i > mapX[ii][1] {
+					mapX[ii] = [2]int{mapX[ii][0], i}
+				}
+				if i < mapX[ii][0] {
+					mapX[ii] = [2]int{i, mapX[ii][1]}
+				}
+			}
+		}
 	}
-	fmt.Println(steps / 2)
+
+	var iCount int
+	for i, line := range pipes {
+		for ii, pipe := range line {
+			if !strings.ContainsAny(pipe, "0123456789") {
+				if ii > mapY[i][0] && ii < mapY[i][1] && i > mapX[ii][0] && i < mapX[ii][1] {
+					pipes[i][ii] = "I"
+					iCount++
+				} else {
+					pipes[i][ii] = "O"
+				}
+			} else {
+				pipes[i][ii] = "*"
+			}
+		}
+	}
+
+	for _, line := range pipes {
+		fmt.Println(line)
+	}
+	fmt.Println(iCount)
+
 }
